@@ -20,7 +20,7 @@
   </head>
   <body>
     <div class="container-fluid">
-      <div class="row g-0">
+      <div class="main-content">
         <div class="col-md-3 p-3 sidebar">
           <h5 class="mb-4"><i class="bi bi-geo-alt-fill"></i> Controles</h5>
 
@@ -77,10 +77,11 @@
           <div id="alerts" class="alerts-container"></div>
         </div>
 
-        <div class="col-md-9">
+        <div class="col-md-9 map-container">
           <div id="map"></div>
         </div>
       </div>
+      <!-- O terminal será injetado aqui pelo JavaScript -->
     </div>
 
     <!-- Scripts -->
@@ -91,6 +92,8 @@
     <script src="heatFilter.js"></script>
     <script src="geofenceManager.js"></script>
     <script src="alertSystem.js"></script>
+    <script src="darkMode.js"></script>
+    <script src="terminal.js"></script>
     <script src="main.js"></script>
   </body>
 </html>

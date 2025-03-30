@@ -4,6 +4,8 @@ document.addEventListener("DOMContentLoaded", () => {
   HeatFilter.init();
   GeofenceManager.init();
   AlertSystem.init();
+  DarkMode.init();
+  Terminal.init(); // Inicializa o terminal
 
   // Configura toggles iniciais
   document.getElementById("heatToggle").checked = true;
@@ -20,6 +22,10 @@ document.addEventListener("DOMContentLoaded", () => {
         map.fitBounds(bounds);
       }
     }
+
+    // Dispara evento de inicialização do mapa para o terminal
+    const mapInitEvent = new Event("mapInitialized");
+    document.dispatchEvent(mapInitEvent);
   }, 500);
 
   // Solicita permissão para notificações

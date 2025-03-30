@@ -6,14 +6,67 @@ body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
+/* Variáveis para temas */
+:root {
+  --bg-color: #f8f9fa;
+  --text-color: #212529;
+  --sidebar-bg: #f8f9fa;
+  --card-bg: #fff;
+  --border-color: rgba(0, 0, 0, 0.1);
+  --heat-color: #dc3545;
+  --geofence-color: #ff7800;
+  --alert-bg: #f8d7da;
+  --alert-text: #721c24;
+  --info-bg: #cff4fc;
+  --info-text: #055160;
+}
+
+/* Tema escuro */
+body.dark-mode {
+  --bg-color: #222;
+  --text-color: #00ff00;
+  --sidebar-bg: #2a2a2a;
+  --card-bg: #333;
+  --border-color: rgba(0, 255, 0, 0.2);
+  --heat-color: #00ff00;
+  --geofence-color: #00ff00;
+  --alert-bg: #333;
+  --alert-text: #00ff00;
+  --info-bg: #333;
+  --info-text: #00ff00;
+}
+
+/* Layout principal */
 .container-fluid {
+  display: flex;
+  flex-direction: column;
   height: 100vh;
   padding: 0;
 }
 
-.row {
+.main-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Ajuste da largura da sidebar */
+.col-md-3.sidebar {
+  flex: 0 0 auto;
+  width: 20%; /* Reduzido de 25% (col-md-3) para 20% */
   height: 100%;
-  margin: 0;
+  overflow-y: auto;
+  padding: 20px;
+  background: var(--sidebar-bg);
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+  transition: background-color 0.3s, color 0.3s;
+  color: var(--text-color);
+}
+
+.col-md-9.map-container {
+  flex: 0 0 auto;
+  width: 80%; /* Aumentado de 75% (col-md-9) para 80% */
+  height: 100%;
 }
 
 #map {
@@ -21,12 +74,31 @@ body {
   z-index: 1;
 }
 
-.sidebar {
-  height: 100%;
-  overflow-y: auto;
-  padding: 20px;
-  background: #f8f9fa;
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+/* Aplicando cores de tema - Elementos base */
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* Estilização do mapa */
+body.dark-mode .leaflet-container {
+  background-color: #333;
+}
+
+body.dark-mode .leaflet-control-attribution {
+  background-color: #222 !important;
+  color: #00ff00 !important;
+}
+
+body.dark-mode .leaflet-control-zoom a {
+  background-color: #333 !important;
+  color: #00ff00 !important;
+  border-color: rgba(0, 255, 0, 0.2) !important;
+}
+
+body.dark-mode .leaflet-control-zoom a:hover {
+  background-color: #444 !important;
 }
 
 /* Toggles */
@@ -39,6 +111,7 @@ body {
   width: 2.5em;
   height: 1.4em;
   margin-left: -3.5em;
+  transition: background-color 0.3s, border-color 0.3s;
 }
 
 .form-switch .form-check-label {
@@ -46,6 +119,7 @@ body {
   vertical-align: middle;
 }
 
+/* Estilo para switches no modo claro */
 #heatToggle.form-check-input:checked {
   background-color: #dc3545;
   border-color: #dc3545;
@@ -54,6 +128,49 @@ body {
 #geofenceToggle.form-check-input:checked {
   background-color: #ff7800;
   border-color: #ff7800;
+}
+
+/* Estilo para switches no modo escuro - apenas quando desligados */
+body.dark-mode input.form-check-input {
+  background-color: #333;
+  border-color: rgba(0, 255, 0, 0.5);
+}
+
+/* Mantém a cor original quando ligados, mesmo no modo escuro */
+body.dark-mode #heatToggle.form-check-input:checked {
+  background-color: #dc3545; /* Mantém a cor vermelha original */
+  border-color: #dc3545;
+}
+
+body.dark-mode #geofenceToggle.form-check-input:checked {
+  background-color: #ff7800; /* Mantém a cor laranja original */
+  border-color: #ff7800;
+}
+
+/* Todos os controles de formulário */
+body.dark-mode .form-control,
+body.dark-mode .btn,
+body.dark-mode .input-group-text {
+  background-color: #333;
+  color: #00ff00;
+  border-color: rgba(0, 255, 0, 0.2);
+}
+
+body.dark-mode .form-control:focus {
+  box-shadow: 0 0 0 0.25rem rgba(0, 255, 0, 0.25);
+  border-color: rgba(0, 255, 0, 0.5);
+}
+
+/* Estilos para input file específico */
+body.dark-mode .form-control[type="file"] {
+  background-color: #333;
+  color: #00ff00;
+}
+
+body.dark-mode .form-control[type="file"]::file-selector-button {
+  background-color: #444;
+  color: #00ff00;
+  border-color: rgba(0, 255, 0, 0.3);
 }
 
 /* Geofences List */
@@ -71,10 +188,27 @@ body {
   background: rgba(255, 120, 0, 0.1);
 }
 
+body.dark-mode .geofence-item {
+  background: rgba(0, 255, 0, 0.05);
+  border-left: 3px solid #00ff00;
+}
+
+body.dark-mode .geofence-item:hover {
+  background: rgba(0, 255, 0, 0.1);
+}
+
 .geofence-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+body.dark-mode .geofence-header {
+  color: #00ff00;
+}
+
+body.dark-mode .geofence-name {
+  color: #00ff00;
 }
 
 .delete-btn {
@@ -88,6 +222,42 @@ body {
 
 .delete-btn:hover {
   color: #a71d2a;
+}
+
+body.dark-mode .delete-btn {
+  color: #00ff00;
+}
+
+body.dark-mode .delete-btn:hover {
+  color: #00cc00;
+}
+
+/* Alertas e mensagens */
+body.dark-mode .alert {
+  background-color: #333;
+  color: #00ff00;
+  border-color: rgba(0, 255, 0, 0.2);
+}
+
+body.dark-mode .alert-info,
+body.dark-mode .alert-light,
+body.dark-mode .alert-danger {
+  background-color: #333;
+  color: #00ff00;
+  border-color: rgba(0, 255, 0, 0.2);
+}
+
+/* Textos secundários e ícones */
+body.dark-mode .text-muted {
+  color: rgba(0, 255, 0, 0.7) !important;
+}
+
+body.dark-mode small {
+  color: rgba(0, 255, 0, 0.8);
+}
+
+body.dark-mode .bi {
+  color: #00ff00;
 }
 
 /* Alerts */
@@ -104,4 +274,159 @@ body {
 
 .alert-notification:hover {
   transform: translateX(3px);
+}
+
+body.dark-mode .alert-notification {
+  background-color: #333;
+  color: #00ff00;
+  border-color: rgba(0, 255, 0, 0.3);
+}
+
+body.dark-mode .alert-notification:hover {
+  background-color: #3a3a3a;
+}
+
+/* Popups no mapa */
+body.dark-mode .leaflet-popup-content-wrapper {
+  background-color: #333;
+  color: #00ff00;
+}
+
+body.dark-mode .leaflet-popup-tip {
+  background-color: #333;
+}
+
+/* Padronização dos estilos para elementos informativos */
+.alert-light {
+  background-color: var(--info-bg);
+  color: var(--info-text);
+  border-color: var(--border-color);
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* Estilização do texto de formato aceito */
+.text-muted {
+  transition: color 0.3s;
+}
+
+/* Estilização específica para o ícone do mouse */
+body.dark-mode .bi-mouse {
+  color: #00ff00;
+}
+
+/* Estilização para o label e input de arquivo */
+.form-label,
+.form-control {
+  transition: color 0.3s, background-color 0.3s, border-color 0.3s;
+}
+
+body.dark-mode .form-label {
+  color: #00ff00;
+}
+
+/* Estilo para o botão toggle do modo escuro */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-right: 10px;
+  margin-bottom: 10px;
+}
+
+.theme-toggle:hover {
+  transform: scale(1.1);
+}
+
+body.dark-mode .theme-toggle {
+  background-color: rgba(0, 255, 0, 0.1);
+  color: #00ff00;
+  border-color: rgba(0, 255, 0, 0.3);
+}
+
+.controls-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.controls-title {
+  margin: 0;
+  flex-grow: 1;
+}
+
+/* Container para o terminal - Modo Claro */
+.terminal-container {
+  width: 100%;
+  height: 120px;
+  background-color: #f0f0f0;
+  color: #333;
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+  padding: 10px;
+  overflow-y: auto;
+  border-top: 3px solid #ddd;
+  transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+}
+
+/* Estilo para as linhas do terminal */
+.terminal-line {
+  margin: 2px 0;
+  line-height: 1.3;
+}
+
+/* Cores para o modo claro */
+.terminal-timestamp {
+  color: #666;
+  margin-right: 8px;
+}
+
+.terminal-info {
+  color: #0066cc;
+}
+
+.terminal-warning {
+  color: #cc6600;
+}
+
+.terminal-error {
+  color: #cc0000;
+}
+
+.terminal-success {
+  color: #008800;
+}
+
+/* Modo escuro para o terminal */
+body.dark-mode .terminal-container {
+  background-color: #222;
+  color: #00ff00;
+  border-top-color: rgba(0, 255, 0, 0.3);
+}
+
+body.dark-mode .terminal-timestamp {
+  color: rgba(0, 255, 0, 0.6);
+}
+
+body.dark-mode .terminal-info {
+  color: #33ff33;
+}
+
+body.dark-mode .terminal-warning {
+  color: #ffcc00;
+}
+
+body.dark-mode .terminal-error {
+  color: #ff5555;
+}
+
+body.dark-mode .terminal-success {
+  color: #00ffaa;
 }
