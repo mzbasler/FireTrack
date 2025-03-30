@@ -57,10 +57,10 @@ const GeofenceManager = (() => {
               <p>Escolha como deseja criar o buffer:</p>
               <div class="d-grid gap-2">
                 <button id="bufferMouseBtn" class="btn btn-primary">
-                  <i class="bi bi-mouse"></i> Clicar no mapa
+                  <i class="bi bi-mouse"></i> Clicar 2x no mapa (definir centro e raio)
                 </button>
                 <button id="bufferRadiusBtn" class="btn btn-secondary">
-                  <i class="bi bi-bullseye"></i> Definir raio no centro do mapa
+                  <i class="bi bi-bullseye"></i> Clique + definir raio em km
                 </button>
               </div>
               <div id="bufferHelp" class="form-text mt-3">
@@ -119,36 +119,180 @@ const GeofenceManager = (() => {
     // Configurar os listeners para os botões do modal
     document.getElementById("bufferMouseBtn").addEventListener("click", () => {
       // Fechar modal
-      const modal = bootstrap.Modal.getInstance(
-        document.getElementById("bufferModal")
-      );
-      modal.hide();
-
-      // Ativar modo de desenho por clique no mapa
-      if (MapModule.toggleBufferDrawMode) {
-        MapModule.toggleBufferDrawMode(true);
-
-        if (
-          window.Terminal &&
-          typeof window.Terminal.addMessage === "function"
-        ) {
-          window.Terminal.addMessage(
-            "Clique no mapa para posicionar o buffer.",
-            "info"
-          );
+      const modalElement = document.getElementById("bufferModal");
+      try {
+        const modal = bootstrap.Modal.getInstance(modalElement);
+        if (modal) {
+          modal.hide();
+        } else {
+          // Alternativa se o objeto modal não existir
+          modalElement.classList.remove("show");
+          modalElement.style.display = "none";
+          document.body.classList.remove("modal-open");
+          const backdrop = document.querySelector(".modal-backdrop");
+          if (backdrop) {
+            backdrop.parentNode.removeChild(backdrop);
+          }
         }
+      } catch (error) {
+        console.warn("Erro ao fechar modal:", error);
+        // Tentar forçar fechamento manual
+        modalElement.classList.remove("show");
+        modalElement.style.display = "none";
+        document.body.classList.remove("modal-open");
+        document
+          .querySelectorAll(".modal-backdrop")
+          .forEach((el) => el.remove());
+      }
+
+      // Verificar e ativar o BufferDrawingModule
+      if (window.BufferDrawingModule) {
+        try {
+          window.BufferDrawingModule.toggleDrawingMode(true);
+
+          if (window.Terminal) {
+            window.Terminal.addMessage(
+              "Modo de desenho de buffer ativado. Clique no mapa para definir o centro e depois clique novamente para definir o raio.",
+              "info"
+            );
+          }
+        } catch (error) {
+          console.error("Erro ao ativar modo de desenho de buffer:", error);
+          alert("Erro ao ativar modo de desenho. Tente novamente.");
+        }
+      } else {
+        console.error("BufferDrawingModule não está disponível");
+        alert(
+          "Erro: Módulo de desenho de buffer não está disponível. Tente usar o método alternativo."
+        );
       }
     });
 
     document.getElementById("bufferRadiusBtn").addEventListener("click", () => {
       // Fechar modal
-      const modal = bootstrap.Modal.getInstance(
-        document.getElementById("bufferModal")
-      );
-      modal.hide();
+      const modalElement = document.getElementById("bufferModal");
+      try {
+        const modal = bootstrap.Modal.getInstance(modalElement);
+        if (modal) {
+          modal.hide();
+        } else {
+          // Alternativa se o objeto modal não existir
+          modalElement.classList.remove("show");
+          modalElement.style.display = "none";
+          document.body.classList.remove("modal-open");
+          const backdrop = document.querySelector(".modal-backdrop");
+          if (backdrop) {
+            backdrop.parentNode.removeChild(backdrop);
+          }
+        }
+      } catch (error) {
+        console.warn("Erro ao fechar modal:", error);
+        // Tentar forçar fechamento manual
+        modalElement.classList.remove("show");
+        modalElement.style.display = "none";
+        document.body.classList.remove("modal-open");
+        document
+          .querySelectorAll(".modal-backdrop")
+          .forEach((el) => el.remove());
+      }
 
-      // Usar o centro atual do mapa
-      addCustomBuffer();
+      // Usar o modo de criação de buffer por clique + raio definido
+      if (window.Terminal) {
+        window.Terminal.addMessage(
+          "Clique no mapa para definir o centro do buffer.",
+          "info"
+        );
+      }
+
+      // Alterar cursor
+      const mapEl = document.getElementById("map");
+      if (mapEl) {
+        mapEl.style.cursor = "crosshair";
+      }
+
+      // Adicionar um listener de clique único
+      const map = MapModule.getMap();
+      const clickHandler = (e) => {
+        const center = e.latlng;
+
+        // Remover o evento de clique após o primeiro clique
+        map.off("click", clickHandler);
+
+        // Restaurar cursor
+        if (mapEl) {
+          mapEl.style.cursor = "";
+        }
+
+        // Solicitar raio via prompt
+        const radiusInput = prompt("Digite o raio do buffer em km:", "5");
+        const radius = parseFloat(radiusInput);
+
+        if (!radiusInput || isNaN(radius) || radius <= 0) {
+          alert("Raio inválido. Operação cancelada.");
+          return;
+        }
+
+        // Solicitar nome
+        const name = prompt("Digite um nome para este buffer:");
+        if (!name || name.trim() === "") {
+          alert(
+            "É necessário fornecer um nome para o buffer. Operação cancelada."
+          );
+          return;
+        }
+
+        // Criar buffer
+        const bufferId = Date.now();
+
+        // Criar objeto GeoJSON
+        const point = turf.point([center.lng, center.lat]);
+        const options = { steps: 128, units: "kilometers" };
+        const buffer = turf.buffer(point, radius, options);
+
+        // Criar objeto de geofence
+        const newGeofence = {
+          id: bufferId,
+          name: name.trim(),
+          date: new Date().toISOString(),
+          geometry: buffer,
+          type: "buffer",
+          center: [center.lat, center.lng],
+          radius: radius,
+        };
+
+        // Adicionar ao mapModule
+        MapModule.addCircleBuffer(
+          [center.lat, center.lng],
+          radius,
+          name,
+          bufferId
+        );
+
+        // Adicionar ao GeofenceManager
+        geofences.push(newGeofence);
+        saveGeofences();
+        renderGeofenceList();
+
+        // Notificar
+        if (window.Terminal) {
+          window.Terminal.addMessage(
+            `Buffer "${name}" criado com raio de ${radius}km.`,
+            "success"
+          );
+        }
+
+        // Verificar alertas para o novo buffer
+        if (
+          window.AlertSystem &&
+          typeof window.AlertSystem.checkAlerts === "function"
+        ) {
+          setTimeout(() => window.AlertSystem.checkAlerts(), 1000);
+        }
+
+        alert("Buffer circular cadastrado com sucesso!");
+      };
+
+      map.on("click", clickHandler);
     });
   };
 
@@ -169,98 +313,20 @@ const GeofenceManager = (() => {
     }
 
     // Inicializar e mostrar o modal do Bootstrap
-    const modal = new bootstrap.Modal(modalElement);
-    modal.show();
-  };
-
-  // Função para adicionar buffer personalizado com centro do mapa
-  const addCustomBuffer = () => {
     try {
-      // Obter o mapa
-      const map = MapModule.getMap();
-      if (!map) {
-        alert("Mapa não inicializado!");
-        return;
-      }
-
-      // Obter o centro do mapa atual
-      const center = map.getCenter();
-
-      // Pedir nome e raio ao usuário
-      const name = prompt(
-        "Digite um nome para esta área de buffer:",
-        "Buffer " + new Date().toLocaleDateString()
-      );
-      if (!name) return;
-
-      let radius = prompt("Digite o raio do buffer em km:", "5");
-      radius = parseFloat(radius);
-      if (isNaN(radius) || radius <= 0) {
-        alert("Raio inválido! Use um valor numérico positivo.");
-        return;
-      }
-
-      // Criar um buffer usando turf.js
-      const point = turf.point([center.lng, center.lat]);
-      const buffer = turf.buffer(point, radius, { units: "kilometers" });
-
-      const newGeofence = {
-        id: Date.now(),
-        name: name.trim(),
-        date: new Date().toISOString(),
-        geometry: buffer,
-        type: "buffer",
-        center: [center.lat, center.lng],
-        radius: radius,
-      };
-
-      // Adicionar buffer ao mapa
-      if (MapModule.addCircleBuffer) {
-        MapModule.addCircleBuffer(
-          [center.lat, center.lng],
-          radius,
-          name,
-          newGeofence.id
-        );
-      } else {
-        MapModule.addGeofence(buffer, name, newGeofence.id);
-      }
-
-      // Registrar o buffer
-      geofences.push(newGeofence);
-      saveGeofences();
-      renderGeofenceList();
-
-      if (window.Terminal && typeof window.Terminal.addMessage === "function") {
-        window.Terminal.addMessage(
-          `Buffer "${name}" adicionado com raio de ${radius}km.`,
-          "success"
-        );
-      }
-
-      // Disparar verificação de alertas para o novo buffer
-      if (
-        window.AlertSystem &&
-        typeof window.AlertSystem.checkAlerts === "function"
-      ) {
-        setTimeout(() => window.AlertSystem.checkAlerts(), 1000);
-      }
+      const modal = new bootstrap.Modal(modalElement);
+      modal.show();
     } catch (error) {
-      console.error("Erro ao criar buffer:", error);
-      alert("Erro ao criar buffer: " + error.message);
-    }
-  };
+      console.error("Erro ao exibir modal:", error);
+      // Alternativa se bootstrap.Modal não estiver disponível
+      modalElement.classList.add("show");
+      modalElement.style.display = "block";
+      document.body.classList.add("modal-open");
 
-  // Função para filtrar geofences inválidos
-  const cleanupGeofences = () => {
-    const originalCount = geofences.length;
-    geofences = geofences.filter((g) => g && g.id && g.name && g.geometry);
-
-    if (originalCount !== geofences.length) {
-      console.log(
-        `Removidas ${originalCount - geofences.length} áreas inválidas`
-      );
-      saveGeofences();
+      // Criar backdrop
+      const backdrop = document.createElement("div");
+      backdrop.className = "modal-backdrop fade show";
+      document.body.appendChild(backdrop);
     }
   };
 
@@ -359,13 +425,31 @@ const GeofenceManager = (() => {
           ) {
             MapModule.addCircleBuffer(gf.center, gf.radius, gf.name, gf.id);
           } else {
-            MapModule.addGeofence(gf.geometry, gf.name, gf.id);
+            MapModule.addGeofence(
+              gf.geometry,
+              gf.name,
+              gf.id,
+              gf.type === "buffer"
+            );
           }
         }
       } catch (error) {
         console.error(`Erro ao carregar área ${gf.id}:`, error);
       }
     });
+  };
+
+  // Função para filtrar geofences inválidos
+  const cleanupGeofences = () => {
+    const originalCount = geofences.length;
+    geofences = geofences.filter((g) => g && g.id && g.name && g.geometry);
+
+    if (originalCount !== geofences.length) {
+      console.log(
+        `Removidas ${originalCount - geofences.length} áreas inválidas`
+      );
+      saveGeofences();
+    }
   };
 
   const deleteGeofence = (id) => {
@@ -378,10 +462,18 @@ const GeofenceManager = (() => {
   };
 
   const saveGeofences = () => {
+    // Verificar visualmente os geofences antes de salvar
+    console.log("Salvando geofences:", geofences);
     localStorage.setItem("geofences", JSON.stringify(geofences));
+
+    // Verificar se foi salvo corretamente
+    const saved = localStorage.getItem("geofences");
+    console.log("Geofences salvos:", saved);
   };
 
   const renderGeofenceList = () => {
+    console.log("Renderizando lista de geofences:", geofences);
+
     const listContainer = document.getElementById("geofenceList");
 
     // Limpar qualquer conteúdo anterior
@@ -412,26 +504,28 @@ const GeofenceManager = (() => {
       return;
     }
 
-    // Renderizar apenas geofences válidos
-    listContainer.innerHTML = validGeofences
-      .map((geofence) => {
-        const date = new Date(geofence.date);
-        const formattedDate = isNaN(date.getTime())
-          ? "Data desconhecida"
-          : date.toLocaleDateString("pt-BR");
+    // Separar entre áreas normais e buffers
+    const normalGeofences = validGeofences.filter((g) => g.type !== "buffer");
+    const bufferGeofences = validGeofences.filter((g) => g.type === "buffer");
 
-        // Adicionar ícone de acordo com o tipo
-        let typeIcon = '<i class="bi bi-geo-alt"></i>';
-        if (geofence.type === "buffer") {
-          typeIcon = '<i class="bi bi-bullseye"></i>';
-        }
+    let html = "";
 
-        return `
+    // Renderizar áreas normais
+    if (normalGeofences.length > 0) {
+      html += `<div class="geofence-category">Áreas</div>`;
+      html += normalGeofences
+        .map((geofence) => {
+          const date = new Date(geofence.date);
+          const formattedDate = isNaN(date.getTime())
+            ? "Data desconhecida"
+            : date.toLocaleDateString("pt-BR");
+
+          return `
           <div class="geofence-item" data-id="${geofence.id}">
             <div class="geofence-header">
-              <span class="geofence-name">${typeIcon} ${
-          geofence.name || "Área sem nome"
-        }</span>
+              <span class="geofence-name"><i class="bi bi-geo-alt"></i> ${
+                geofence.name || "Área sem nome"
+              }</span>
               <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${
                 geofence.id
               }" title="Excluir área">
@@ -441,8 +535,47 @@ const GeofenceManager = (() => {
             <small class="text-muted">Cadastrada em: ${formattedDate}</small>
           </div>
         `;
-      })
-      .join("");
+        })
+        .join("");
+    }
+
+    // Renderizar buffers
+    if (bufferGeofences.length > 0) {
+      html += `<div class="geofence-category ${
+        normalGeofences.length > 0 ? "mt-3" : ""
+      }">Buffers</div>`;
+      html += bufferGeofences
+        .map((geofence) => {
+          const date = new Date(geofence.date);
+          const formattedDate = isNaN(date.getTime())
+            ? "Data desconhecida"
+            : date.toLocaleDateString("pt-BR");
+
+          const radiusInfo = geofence.radius
+            ? `Raio: ${geofence.radius.toFixed(1)}km`
+            : "";
+
+          return `
+          <div class="geofence-item buffer-item" data-id="${geofence.id}">
+            <div class="geofence-header">
+              <span class="geofence-name"><i class="bi bi-bullseye"></i> ${
+                geofence.name || "Buffer sem nome"
+              }</span>
+              <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${
+                geofence.id
+              }" title="Excluir buffer">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+            <small class="text-muted">${radiusInfo} • ${formattedDate}</small>
+          </div>
+        `;
+        })
+        .join("");
+    }
+
+    // Atualizar o HTML
+    listContainer.innerHTML = html;
 
     // Add event listeners
     document.querySelectorAll(".geofence-item").forEach((item) => {
@@ -517,6 +650,7 @@ const GeofenceManager = (() => {
                   `Área Ativa`,
                 date: new Date().toISOString(),
                 geometry: geometry,
+                type: layer._isBuffer ? "buffer" : undefined,
               });
             }
           } catch (e) {
@@ -576,5 +710,6 @@ const GeofenceManager = (() => {
     init,
     getGeofences,
     addBufferToGeofences,
+    renderGeofenceList,
   };
 })();

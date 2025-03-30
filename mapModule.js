@@ -14,76 +14,7 @@ const MapModule = (() => {
 
     geofenceLayerGroup.addTo(map);
 
-    // Adicionar eventos para lidar com o modo de desenho de buffer
-    registerMapEvents();
-
     return map;
-  };
-
-  // Registrar eventos do mapa
-  const registerMapEvents = () => {
-    map.on("click", (e) => {
-      if (isDrawingBuffer) {
-        createBufferFromClick(e.latlng);
-        toggleBufferDrawMode(false); // Desativar o modo após criar o buffer
-      }
-    });
-
-    // Ajustar o cursor durante o modo de desenho de buffer
-    map.on("mouseover", () => {
-      if (isDrawingBuffer) {
-        map._container.style.cursor = "crosshair";
-      }
-    });
-  };
-
-  // Criar buffer a partir de um clique no mapa
-  const createBufferFromClick = (latlng) => {
-    const name = prompt(
-      "Digite um nome para esta área de buffer:",
-      "Buffer " + new Date().toLocaleDateString()
-    );
-    if (!name) return;
-
-    let radius = prompt("Digite o raio do buffer em km:", "5");
-    radius = parseFloat(radius);
-    if (isNaN(radius) || radius <= 0) {
-      alert("Raio inválido! Use um valor numérico positivo.");
-      return;
-    }
-
-    const id = Date.now();
-
-    // Adicionar o buffer ao mapa
-    if (addCircleBuffer([latlng.lat, latlng.lng], radius, name, id)) {
-      // Criar objeto turf para o buffer
-      const point = turf.point([latlng.lng, latlng.lat]);
-      const buffer = turf.buffer(point, radius, { units: "kilometers" });
-
-      // Notificar o GeofenceManager para registrar este buffer
-      if (
-        window.GeofenceManager &&
-        typeof window.GeofenceManager.addBufferToGeofences === "function"
-      ) {
-        window.GeofenceManager.addBufferToGeofences({
-          id,
-          name: name.trim(),
-          date: new Date().toISOString(),
-          geometry: buffer,
-          type: "buffer",
-          center: [latlng.lat, latlng.lng],
-          radius: radius,
-        });
-      }
-
-      // Verificar se existem focos no buffer
-      if (
-        window.AlertSystem &&
-        typeof window.AlertSystem.checkAlerts === "function"
-      ) {
-        setTimeout(() => window.AlertSystem.checkAlerts(), 1000);
-      }
-    }
   };
 
   const initHeatLayer = () => {
@@ -126,19 +57,20 @@ const MapModule = (() => {
     }
   };
 
-  const addGeofence = (geojson, name, id) => {
+  const addGeofence = (geojson, name, id, isBuffer = false) => {
     try {
       // Tentar renderizar o GeoJSON diretamente
       const layer = L.geoJSON(geojson, {
         style: {
-          color: "#ff7800",
+          color: isBuffer ? "#00ffff" : "#ff7800",
           weight: 2,
           fillOpacity: 0.1,
-          fillColor: "#ff7800",
+          fillColor: isBuffer ? "#00ffff" : "#ff7800",
         },
       }).bindPopup(`<b>${name}</b>`);
 
       layer._geofenceId = id;
+      layer._isBuffer = isBuffer;
       geofenceLayers[id] = layer;
       geofenceLayerGroup.addLayer(layer);
 
@@ -151,14 +83,15 @@ const MapModule = (() => {
         if (geojson.geometry) {
           const layer = L.geoJSON(geojson.geometry, {
             style: {
-              color: "#ff7800",
+              color: isBuffer ? "#00ffff" : "#ff7800",
               weight: 2,
               fillOpacity: 0.1,
-              fillColor: "#ff7800",
+              fillColor: isBuffer ? "#00ffff" : "#ff7800",
             },
           }).bindPopup(`<b>${name}</b>`);
 
           layer._geofenceId = id;
+          layer._isBuffer = isBuffer;
           geofenceLayers[id] = layer;
           geofenceLayerGroup.addLayer(layer);
           return true;
@@ -180,17 +113,22 @@ const MapModule = (() => {
         return false;
       }
 
+      // Cor baseada no tema atual
+      const isDarkMode = document.body.classList.contains("dark-mode");
+      const bufferColor = isDarkMode ? "#00ffff" : "#1e88e5";
+
       // Criar o círculo com estilo visual de buffer
       const circleLayer = L.circle(center, {
         radius: radius * 1000, // Converter de km para metros
-        color: "#00ffff",
-        fillColor: "#00ffff",
+        color: bufferColor,
+        fillColor: bufferColor,
         fillOpacity: 0.2,
         weight: 2,
       }).bindPopup(`<b>${name}</b>`);
 
       // Armazenar o ID para referência
       circleLayer._geofenceId = id;
+      circleLayer._isBuffer = true;
       geofenceLayers[id] = circleLayer;
       geofenceLayerGroup.addLayer(circleLayer);
 
@@ -266,17 +204,16 @@ const MapModule = (() => {
     }
   };
 
-  // Obter focos de calor visíveis no mapa
+  // Obter focos de calor visíveis no mapa - incluindo alguns focos de teste para debug
   const getVisibleHotspots = () => {
     const hotspots = [];
     const bounds = map.getBounds();
 
     try {
-      // Verificar quais elementos no mapa são focos de calor
-      // Na falta de acesso direto aos dados do WMS, adicionar pontos fixos estratégicos
-      // que representam os pontos vermelhos visíveis na imagem
-      const specificHotspots = [
-        { latitude: -15.21, longitude: -47.64 }, // Ponto no buffer azul da imagem
+      // Adicionar alguns pontos de teste para verificar a detecção de focos dentro de buffers
+      // Estes são pontos que devem estar dentro dos buffers criados na região de Brasília
+      const testHotspots = [
+        { latitude: -15.21, longitude: -47.64 }, // Ponto para teste dentro de um buffer
         { latitude: -15.05, longitude: -47.95 },
         { latitude: -15.3, longitude: -47.25 },
         { latitude: -15.55, longitude: -47.8 },
@@ -287,8 +224,8 @@ const MapModule = (() => {
         { latitude: -14.9, longitude: -47.9 },
       ];
 
-      // Adicionar pontos específicos se estiverem dentro dos limites do mapa
-      specificHotspots.forEach((spot) => {
+      // Adicionar pontos de teste se estiverem dentro dos limites do mapa
+      testHotspots.forEach((spot) => {
         if (bounds.contains(L.latLng(spot.latitude, spot.longitude))) {
           hotspots.push({
             latitude: spot.latitude,
@@ -299,38 +236,13 @@ const MapModule = (() => {
         }
       });
 
-      // Se a camada de calor estiver ativa, gerar pontos aleatórios adicionais dentro dos limites visíveis
-      const heatToggle = document.getElementById("heatToggle");
-      if (heatToggle && heatToggle.checked && hotspots.length < 10) {
-        const sw = bounds.getSouthWest();
-        const ne = bounds.getNorthEast();
-
-        // Gerar pontos aleatórios dentro dos limites visíveis
-        for (let i = 0; i < 15; i++) {
-          const lat = sw.lat + Math.random() * (ne.lat - sw.lat);
-          const lng = sw.lng + Math.random() * (ne.lng - sw.lng);
-
-          hotspots.push({
-            latitude: lat,
-            longitude: lng,
-            confidence:
-              Math.random() > 0.7
-                ? "high"
-                : Math.random() > 0.4
-                ? "medium"
-                : "low",
-            timestamp: new Date().toISOString(),
-          });
-        }
-      }
-
       if (
         window.Terminal &&
         typeof window.Terminal.addMessage === "function" &&
         hotspots.length > 0
       ) {
         window.Terminal.addMessage(
-          `Encontrados ${hotspots.length} focos de calor na visualização atual.`,
+          `Encontrados ${hotspots.length} focos de calor para teste.`,
           "info"
         );
       }

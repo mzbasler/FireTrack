@@ -475,7 +475,6 @@ body.dark-mode .terminal-success {
   border-color: #1976d2;
 }
 
-/* Estilos específicos para o botão de buffer no modo escuro */
 body.dark-mode .buffer-btn {
   background-color: #333;
   color: #00ff00;
@@ -533,35 +532,6 @@ body.dark-mode .geofence-category.mt-3 {
   border-top: 1px solid rgba(0, 255, 0, 0.2);
 }
 
-/* Estilização para áreas do tipo buffer na lista */
-.geofence-category {
-  font-weight: bold;
-  margin-bottom: 8px;
-  color: #555;
-}
-
-body.dark-mode .geofence-category {
-  color: #00ff00;
-}
-
-.buffer-item {
-  border-left: 3px solid #1e88e5;
-  background: rgba(30, 136, 229, 0.05);
-}
-
-.buffer-item:hover {
-  background: rgba(30, 136, 229, 0.1);
-}
-
-body.dark-mode .buffer-item {
-  border-left: 3px solid #00ffff;
-  background: rgba(0, 255, 255, 0.05);
-}
-
-body.dark-mode .buffer-item:hover {
-  background: rgba(0, 255, 255, 0.1);
-}
-
 /* Estilo para o overlay de instruções do buffer */
 .drawing-overlay {
   position: absolute;
@@ -609,6 +579,17 @@ body.dark-mode .drawing-overlay {
   animation: spin 1s linear infinite;
 }
 
+/* Estilo para o container do toggle de focos de calor */
+.form-check.form-switch.mb-3 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Corrigir o alinhamento do texto do toggle */
+.form-check.form-switch.mb-3 .form-check-label {
+}
+
 /* Estilo para o botão no modo escuro */
 body.dark-mode #updateHotspotsBtn {
   color: #00ff00;
@@ -628,4 +609,146 @@ body.dark-mode #updateHotspotsBtn:hover {
   100% {
     transform: rotate(360deg);
   }
+}
+
+/* Estilo específico para o botão de atualização */
+.update-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  border-radius: 50% !important; /* Forçar bordas completamente redondas */
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px;
+  min-height: 36px;
+  max-width: 36px;
+  max-height: 36px;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-left: 15px;
+  padding: 0 !important; /* Remover qualquer padding que possa afetar a forma */
+  overflow: hidden;
+  box-sizing: border-box;
+  line-height: 1;
+}
+
+.update-button:hover {
+  transform: rotate(180deg);
+}
+
+.update-button.updating {
+  animation: spin 1s linear infinite;
+}
+
+.update-button i {
+  font-size: 20px; /* Ajustar tamanho do ícone */
+  margin: 0;
+  padding: 0;
+}
+
+body.dark-mode .update-button {
+  background-color: rgba(0, 255, 0, 0.1);
+  color: #00ff00;
+  border-color: rgba(0, 255, 0, 0.3);
+}
+
+body.dark-mode .update-button:hover {
+  background-color: rgba(0, 255, 0, 0.2);
+}
+
+/* Ajustes no espaçamento do ícone no label */
+.form-check-label i.bi {
+  margin-right: 8px !important;
+}
+
+/* Ajustes no container do switch */
+.form-check.form-switch.mb-3 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-left: 3.5em;
+  padding-right: 10px;
+  margin-bottom: 0.8rem;
+}
+
+.form-check.form-switch.mb-3 .form-check-label {
+  flex: 1;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px; /* Espaçamento entre o ícone e o texto */
+}
+
+.form-switch .form-check-input {
+  width: 2.5em;
+  height: 1.4em;
+  margin-left: -3.5em;
+  margin-right: 10px; /* Adicionar espaço após o input */
+  transition: background-color 0.3s, border-color 0.3s;
+}
+
+/* Animação para o botão de atualizar */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(180deg);
+  }
+}
+
+/* Estilos para corrigir o alinhamento dos ícones */
+.icon-container {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 5px;
+  width: 16px;
+  height: 16px;
+  position: relative;
+  top: -1px; /* Ajuste vertical sutil para alinhar com o texto */
+}
+
+.icon-container i {
+  font-size: 14px;
+  line-height: 1;
+  position: relative;
+}
+
+/* Garantir que ambos os labels usem o mesmo padrão de alinhamento */
+.form-check-label {
+  display: flex;
+  align-items: center;
+  line-height: 1.5;
+}
+
+/* Ajustes específicos para os ícones em labels */
+label[for="heatToggle"] .icon-container i,
+label[for="geofenceToggle"] .icon-container i {
+  font-size: 14px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Forçar o correto alinhamento vertical dos labels */
+.form-check.form-switch.mb-3 {
+  padding-left: 3.5em;
+  padding-right: 10px;
+  margin-bottom: 0.8rem !important;
+  display: flex;
+  align-items: center;
+}
+
+.form-check.form-switch.mb-3 .form-check-label {
+  margin: 0;
+  padding-top: 2px; /* Ajuste fino do alinhamento vertical */
+}
+
+/* Consistência no espaçamento entre os ícones e texto */
+.form-check-label .icon-container + span,
+.form-check-label .icon-container ~ span {
+  margin-left: 5px;
 }

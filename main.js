@@ -6,7 +6,21 @@ document.addEventListener("DOMContentLoaded", () => {
   AlertSystem.init();
   DarkMode.init();
   Terminal.init(); // Inicializa o terminal
-  BufferDrawingModule.init(); // Inicializa o módulo de buffer
+
+  // Inicializar o módulo de buffer após os outros módulos
+  if (typeof BufferDrawingModule !== "undefined") {
+    BufferDrawingModule.init(); // Inicializa o módulo de buffer
+    console.log("Módulo de buffer inicializado com sucesso");
+
+    if (window.Terminal) {
+      window.Terminal.addMessage("Módulo de buffer inicializado", "success");
+    }
+  } else {
+    console.error("Erro: módulo de buffer não encontrado");
+  }
+
+  // Tornar o módulo disponível globalmente
+  window.BufferDrawingModule = BufferDrawingModule;
 
   // Configura toggles iniciais
   document.getElementById("heatToggle").checked = true;

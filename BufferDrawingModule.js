@@ -11,58 +11,35 @@ const BufferDrawingModule = (() => {
     // Obter referência ao mapa
     map = MapModule.getMap();
 
-    // Criar botão para adicionar buffer
-    setupBufferControl();
-
-    // Adicionar evento de clique ao mapa
-    map.on("click", handleMapClick);
-
     // Criar overlay para instruções
     createDrawingOverlay();
   };
 
-  const setupBufferControl = () => {
-    // Encontrar o container da área de arquivo
-    const fileInputContainer = document.querySelector(
-      ".mb-4:has(#geofenceFile)"
-    );
-
-    if (fileInputContainer) {
-      // Criar o botão de buffer após o input file
-      const bufferButton = document.createElement("button");
-      bufferButton.id = "addBufferBtn";
-      bufferButton.className = "btn btn-outline-primary mt-2 buffer-btn";
-      bufferButton.innerHTML = '<i class="bi bi-circle"></i> Adicionar buffer';
-      bufferButton.title =
-        "Clique para ativar o modo de criação de buffer circular";
-
-      // Inserir após o container do input file
-      fileInputContainer.appendChild(bufferButton);
-
-      // Adicionar listener ao botão
-      bufferButton.addEventListener("click", toggleDrawingMode);
+  const createDrawingOverlay = () => {
+    // Criar overlay para instruções de desenho se ainda não existir
+    if (!document.querySelector(".drawing-overlay")) {
+      drawingOverlay = document.createElement("div");
+      drawingOverlay.className = "drawing-overlay";
+      drawingOverlay.innerHTML =
+        "<p>Clique no mapa para definir o centro do buffer</p>";
+      document.querySelector(".map-container").appendChild(drawingOverlay);
+      drawingOverlay.style.display = "none"; // Inicialmente escondido
+    } else {
+      drawingOverlay = document.querySelector(".drawing-overlay");
     }
   };
 
-  const createDrawingOverlay = () => {
-    // Criar overlay para instruções de desenho
-    drawingOverlay = document.createElement("div");
-    drawingOverlay.className = "drawing-overlay";
-    drawingOverlay.innerHTML =
-      "<p>Clique no mapa para definir o centro do buffer</p>";
-    document.querySelector(".map-container").appendChild(drawingOverlay);
-  };
-
-  const toggleDrawingMode = () => {
-    isDrawingMode = !isDrawingMode;
-    const bufferBtn = document.getElementById("addBufferBtn");
+  const toggleDrawingMode = (enable) => {
+    isDrawingMode = enable !== undefined ? enable : !isDrawingMode;
 
     if (isDrawingMode) {
       // Ativar modo de desenho
-      bufferBtn.classList.add("active");
-
       // Exibir mensagem de instrução
       drawingOverlay.style.display = "block";
+
+      // Adicionar evento de clique ao mapa (se ainda não estiver adicionado)
+      map.off("click", handleMapClick); // Remover para evitar duplicação
+      map.on("click", handleMapClick);
 
       // Registrar evento no terminal
       if (window.Terminal) {
@@ -73,13 +50,14 @@ const BufferDrawingModule = (() => {
       document.getElementById("map").style.cursor = "crosshair";
     } else {
       // Desativar modo de desenho
-      bufferBtn.classList.remove("active");
-
       // Esconder mensagem de instrução
       drawingOverlay.style.display = "none";
 
       // Limpar desenho em progresso
       clearDrawing();
+
+      // Remover o evento de clique do mapa
+      map.off("click", handleMapClick);
 
       // Restaurar cursor
       document.getElementById("map").style.cursor = "";
@@ -160,43 +138,77 @@ const BufferDrawingModule = (() => {
         mouseMoveListener = null;
       }
 
-      // Criar ponto para o centro
-      const point = turf.point([centerPoint.lng, centerPoint.lat]);
-
       // Converter raio de metros para quilômetros para o turf.buffer
       const radiusInKm = radiusInMeters / 1000;
-
-      // Criar buffer usando Turf.js com mais steps para um círculo mais suave
-      const options = { steps: 128, units: "kilometers" };
-      const buffer = turf.buffer(point, radiusInKm, options);
 
       // Pedir um nome para o buffer
       const bufferName = prompt("Digite um nome para este buffer:");
 
       if (bufferName && bufferName.trim() !== "") {
-        // Criar geofence no sistema
-        const newGeofence = {
-          id: Date.now(),
-          name: bufferName.trim(),
-          date: new Date().toISOString(),
-          geometry: buffer,
-          type: "buffer", // Adicionar tipo para diferenciar de áreas normais
-        };
+        // Criar buffer no sistema
+        const bufferId = Date.now();
 
-        // Adicionar ao mapa usando o GeofenceManager existente
-        if (MapModule.addGeofence(buffer, bufferName, newGeofence.id, true)) {
-          // true para marcar como buffer
-          // Adicionar à lista de geofences
-          const geofences = JSON.parse(
-            localStorage.getItem("geofences") || "[]"
-          );
+        try {
+          // Criar ponto para o centro
+          const point = turf.point([centerPoint.lng, centerPoint.lat]);
+
+          // Criar buffer usando Turf.js com mais steps para um círculo mais suave
+          const options = { steps: 128, units: "kilometers" };
+          const buffer = turf.buffer(point, radiusInKm, options);
+
+          // Criar geofence no sistema
+          const newGeofence = {
+            id: bufferId,
+            name: bufferName.trim(),
+            date: new Date().toISOString(),
+            geometry: buffer,
+            type: "buffer", // Essencial: define o tipo como buffer para categorização correta
+            center: [centerPoint.lat, centerPoint.lng],
+            radius: radiusInKm,
+          };
+
+          console.log("Tentando salvar novo buffer:", newGeofence);
+
+          // CORREÇÃO: Manipular diretamente o array de geofences no localStorage
+          let geofences = [];
+          try {
+            const stored = localStorage.getItem("geofences");
+            if (stored) {
+              geofences = JSON.parse(stored);
+              if (!Array.isArray(geofences)) {
+                geofences = [];
+              }
+            }
+          } catch (e) {
+            console.error("Erro ao carregar geofences do localStorage:", e);
+            geofences = [];
+          }
+
+          // Adicionar o novo buffer ao array
           geofences.push(newGeofence);
+
+          // Salvar o array atualizado no localStorage
           localStorage.setItem("geofences", JSON.stringify(geofences));
 
-          // Atualizar lista visual de geofences
-          if (typeof GeofenceManager.renderGeofenceList === "function") {
-            GeofenceManager.renderGeofenceList();
+          // Log para verificar se o buffer foi adicionado
+          console.log("Buffer adicionado ao localStorage:", newGeofence);
+          console.log("Geofences atualizados:", geofences);
+
+          // Forçar atualização da lista visual
+          if (
+            window.GeofenceManager &&
+            typeof window.GeofenceManager.renderGeofenceList === "function"
+          ) {
+            window.GeofenceManager.renderGeofenceList();
           }
+
+          // Adicionar visualmente ao mapa
+          MapModule.addCircleBuffer(
+            [centerPoint.lat, centerPoint.lng],
+            radiusInKm,
+            bufferName.trim(),
+            bufferId
+          );
 
           // Notificar o usuário
           alert("Buffer circular cadastrado com sucesso!");
@@ -210,11 +222,30 @@ const BufferDrawingModule = (() => {
               "success"
             );
           }
+
+          // Verificar alertas para o novo buffer
+          if (
+            window.AlertSystem &&
+            typeof window.AlertSystem.checkAlerts === "function"
+          ) {
+            setTimeout(() => {
+              window.AlertSystem.checkAlerts();
+            }, 1000);
+          }
+        } catch (error) {
+          console.error("Erro ao criar buffer:", error);
+          if (window.Terminal) {
+            window.Terminal.addMessage(
+              `Erro ao criar buffer: ${error.message}`,
+              "error"
+            );
+          }
+          alert(`Erro ao criar buffer: ${error.message}`);
         }
 
         // Resetar o modo de desenho
         clearDrawing();
-        toggleDrawingMode();
+        toggleDrawingMode(false);
       } else {
         // Usuário cancelou o prompt
         clearDrawing();
@@ -254,5 +285,6 @@ const BufferDrawingModule = (() => {
 
   return {
     init,
+    toggleDrawingMode,
   };
 })();
