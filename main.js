@@ -6,6 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
   AlertSystem.init();
   DarkMode.init();
   Terminal.init(); // Inicializa o terminal
+  BufferDrawingModule.init(); // Inicializa o módulo de buffer
 
   // Configura toggles iniciais
   document.getElementById("heatToggle").checked = true;
