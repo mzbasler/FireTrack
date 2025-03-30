@@ -37,6 +37,7 @@ const MapModule = (() => {
 
   const addGeofence = (geojson, name, id) => {
     try {
+      // Tentar renderizar o GeoJSON diretamente
       const layer = L.geoJSON(geojson, {
         style: {
           color: "#ff7800",
@@ -53,6 +54,28 @@ const MapModule = (() => {
       return true;
     } catch (error) {
       console.error("Erro ao adicionar geofence:", error);
+
+      try {
+        // Tentar extrair e usar apenas a geometria
+        if (geojson.geometry) {
+          const layer = L.geoJSON(geojson.geometry, {
+            style: {
+              color: "#ff7800",
+              weight: 2,
+              fillOpacity: 0.1,
+              fillColor: "#ff7800",
+            },
+          }).bindPopup(`<b>${name}</b>`);
+
+          layer._geofenceId = id;
+          geofenceLayers[id] = layer;
+          geofenceLayerGroup.addLayer(layer);
+          return true;
+        }
+      } catch (secondError) {
+        console.error("Segunda tentativa falhou:", secondError);
+      }
+
       return false;
     }
   };

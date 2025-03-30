@@ -1,5 +1,23 @@
 const GeofenceManager = (() => {
-  let geofences = JSON.parse(localStorage.getItem("geofences")) || [];
+  // Garantir que geofences seja sempre um array, mesmo se o localStorage estiver corrompido
+  let geofences = [];
+
+  // Inicializar geofences com segurança
+  try {
+    const storedGeofences = localStorage.getItem("geofences");
+    if (storedGeofences) {
+      const parsed = JSON.parse(storedGeofences);
+      if (Array.isArray(parsed)) {
+        geofences = parsed;
+      } else {
+        console.error("Formato inválido de geofences no localStorage");
+        localStorage.removeItem("geofences"); // Limpar dados inválidos
+      }
+    }
+  } catch (error) {
+    console.error("Erro ao carregar geofences do localStorage:", error);
+    localStorage.removeItem("geofences"); // Limpar dados corrompidos
+  }
 
   const init = () => {
     document
@@ -13,6 +31,19 @@ const GeofenceManager = (() => {
 
     renderGeofenceList();
     loadExistingGeofences();
+  };
+
+  // Função para filtrar geofences inválidos
+  const cleanupGeofences = () => {
+    const originalCount = geofences.length;
+    geofences = geofences.filter((g) => g && g.id && g.name && g.geometry);
+
+    if (originalCount !== geofences.length) {
+      console.log(
+        `Removidas ${originalCount - geofences.length} áreas inválidas`
+      );
+      saveGeofences();
+    }
   };
 
   const handleFileUpload = (e) => {
@@ -45,20 +76,28 @@ const GeofenceManager = (() => {
           throw new Error("Formato de arquivo não suportado");
         }
 
-        if (!geojson.features || geojson.features.length === 0) {
+        // Verifica se o GeoJSON é válido
+        if (
+          !geojson ||
+          ((!geojson.features || geojson.features.length === 0) &&
+            !geojson.geometry &&
+            !geojson.coordinates)
+        ) {
           throw new Error("Arquivo sem dados geográficos válidos");
         }
 
-        const buffer = turf.buffer(geojson, 5, { units: "kilometers" });
+        // Cria um buffer, usando a geometria correta
+        let validGeojson = geojson;
+        const buffer = turf.buffer(validGeojson, 5, { units: "kilometers" });
 
         const newGeofence = {
           id: Date.now(),
           name: name.trim(),
           date: new Date().toISOString(),
-          geometry: buffer.geometry,
+          geometry: buffer,
         };
 
-        if (MapModule.addGeofence(buffer.geometry, name, newGeofence.id)) {
+        if (MapModule.addGeofence(buffer, name, newGeofence.id)) {
           geofences.push(newGeofence);
           saveGeofences();
           renderGeofenceList();
@@ -78,6 +117,10 @@ const GeofenceManager = (() => {
   };
 
   const loadExistingGeofences = () => {
+    // Primeiro limpar quaisquer geofences inválidos
+    cleanupGeofences();
+
+    // Depois carregar as geofences válidas
     geofences.forEach((gf) => {
       try {
         if (gf.geometry && gf.name && gf.id) {
@@ -105,16 +148,36 @@ const GeofenceManager = (() => {
   const renderGeofenceList = () => {
     const listContainer = document.getElementById("geofenceList");
 
-    if (geofences.length === 0) {
+    // Limpar qualquer conteúdo anterior
+    listContainer.innerHTML = "";
+
+    // Verificar e limpar geofences inválidos
+    cleanupGeofences();
+
+    // Verificação explícita se o array está vazio
+    if (!geofences || geofences.length === 0) {
       listContainer.innerHTML = `
-              <div class="alert alert-info">
-                  <i class="bi bi-info-circle"></i> Nenhuma área cadastrada ainda
-              </div>
-          `;
+        <div class="alert alert-info">
+          <i class="bi bi-info-circle"></i> Nenhuma área cadastrada ainda
+        </div>
+      `;
       return;
     }
 
-    listContainer.innerHTML = geofences
+    // Construir a lista apenas se houver geofences válidos
+    const validGeofences = geofences.filter((g) => g && g.id && g.name);
+
+    if (validGeofences.length === 0) {
+      listContainer.innerHTML = `
+        <div class="alert alert-info">
+          <i class="bi bi-info-circle"></i> Nenhuma área cadastrada ainda
+        </div>
+      `;
+      return;
+    }
+
+    // Renderizar apenas geofences válidos
+    listContainer.innerHTML = validGeofences
       .map((geofence) => {
         const date = new Date(geofence.date);
         const formattedDate = isNaN(date.getTime())
@@ -122,20 +185,20 @@ const GeofenceManager = (() => {
           : date.toLocaleDateString("pt-BR");
 
         return `
-              <div class="geofence-item" data-id="${geofence.id}">
-                  <div class="geofence-header">
-                      <span class="geofence-name">${
-                        geofence.name || "Área sem nome"
-                      }</span>
-                      <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${
-                        geofence.id
-                      }" title="Excluir área">
-                          <i class="bi bi-trash"></i>
-                      </button>
-                  </div>
-                  <small class="text-muted">Cadastrada em: ${formattedDate}</small>
-              </div>
-          `;
+          <div class="geofence-item" data-id="${geofence.id}">
+            <div class="geofence-header">
+              <span class="geofence-name">${
+                geofence.name || "Área sem nome"
+              }</span>
+              <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${
+                geofence.id
+              }" title="Excluir área">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+            <small class="text-muted">Cadastrada em: ${formattedDate}</small>
+          </div>
+        `;
       })
       .join("");
 
@@ -157,7 +220,8 @@ const GeofenceManager = (() => {
     });
   };
 
-  const getGeofences = () => geofences;
+  const getGeofences = () =>
+    geofences.filter((g) => g && g.id && g.name && g.geometry);
 
   return {
     init,
