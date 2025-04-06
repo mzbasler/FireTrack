@@ -36,17 +36,29 @@
           </div>
 
           <div class="mb-4">
-            <label for="geofenceFile" class="form-label">Adicionar área:</label>
+            <label for="geofenceFile" class="form-label"
+              >Adicionar área(s):</label
+            >
             <input
               type="file"
               id="geofenceFile"
               class="form-control"
               accept=".geojson,.kml"
+              multiple
             />
             <small class="text-muted"
               ><i class="bi bi-info-circle"></i> Formatos aceitos: KML ou
               GeoJSON</small
             >
+          </div>
+
+          <div class="mb-4">
+            <button
+              id="clearGeofencesBtn"
+              class="btn btn-sm btn-outline-danger w-100"
+            >
+              <i class="bi bi-trash"></i> Limpar todas as áreas
+            </button>
           </div>
 
           <div class="mb-4">

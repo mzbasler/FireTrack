@@ -164,6 +164,46 @@ body.dark-mode .delete-btn {
   color: #00ff00;
 }
 
+/* Estilo para o indicador de cor da área */
+.geofence-color {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+
+/* Melhorias para a lista de áreas */
+#geofenceList {
+  max-height: 30vh;
+  overflow-y: auto;
+  margin-bottom: 15px;
+  padding-right: 5px;
+}
+
+#geofenceList::-webkit-scrollbar {
+  width: 5px;
+}
+
+#geofenceList::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+}
+
+#geofenceList::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
+body.dark-mode #geofenceList::-webkit-scrollbar-track {
+  background: rgba(0, 255, 0, 0.05);
+}
+
+body.dark-mode #geofenceList::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 0, 0.2);
+}
+
 /* Alertas */
 .alerts-container {
   max-height: 30vh;
@@ -199,7 +239,7 @@ body.dark-mode .alert-notification {
   height: 36px;
   cursor: pointer;
   transition: all 0.3s;
-  margin-right: 10px;
+  margin-left: 10px;
 }
 
 .theme-toggle:hover {
@@ -300,4 +340,23 @@ body.dark-mode .drawing-overlay {
 body.dark-mode .buffer-item {
   border-left: 3px solid #00ffff;
   background: rgba(0, 255, 255, 0.05);
+}
+
+/* Estilo para o botão limpar áreas */
+#clearGeofencesBtn {
+  transition: all 0.3s;
+}
+
+#clearGeofencesBtn:hover {
+  background-color: #dc3545;
+  color: white;
+}
+
+body.dark-mode #clearGeofencesBtn {
+  border-color: rgba(0, 255, 0, 0.3);
+  color: #00ff00;
+}
+
+body.dark-mode #clearGeofencesBtn:hover {
+  background-color: rgba(220, 53, 69, 0.2);
 }

@@ -5,9 +5,12 @@
     darkModeToggle.innerHTML = '<i class="bi bi-moon-stars"></i>';
     darkModeToggle.title = "Alternar modo escuro";
 
-    const controlsHeader = document.querySelector(".controls-header");
-    if (controlsHeader) {
-      controlsHeader.prepend(darkModeToggle);
+    const updateButton = document.getElementById("updateHotspotsBtn");
+    if (updateButton && updateButton.parentNode) {
+      updateButton.parentNode.insertBefore(
+        darkModeToggle,
+        updateButton.nextSibling
+      );
     }
 
     darkModeToggle.addEventListener("click", toggleDarkMode);

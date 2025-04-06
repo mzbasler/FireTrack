@@ -54,6 +54,10 @@
       console.log("Configurando botão de atualização...");
       setupRefreshButton();
 
+      // 6. Setup clear geofences button
+      console.log("Configurando botão de limpar áreas...");
+      setupClearGeofencesButton();
+
       console.log("Aplicação inicializada com sucesso!");
     } catch (error) {
       console.error("Erro na inicialização:", error);
@@ -101,6 +105,23 @@
           updateBtn.classList.remove("updating");
           updateBtn.disabled = false;
         }, 1000);
+      }
+    });
+  }
+
+  function setupClearGeofencesButton() {
+    const clearGeofencesBtn = document.getElementById("clearGeofencesBtn");
+    if (!clearGeofencesBtn) {
+      console.warn("Botão de limpar áreas não encontrado");
+      return;
+    }
+
+    clearGeofencesBtn.addEventListener("click", function () {
+      if (
+        confirm("Tem certeza que deseja excluir todas as áreas monitoradas?")
+      ) {
+        namespace.GeofenceManager.clearAll();
+        showAlert("Todas as áreas foram removidas");
       }
     });
   }
