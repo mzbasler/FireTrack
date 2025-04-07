@@ -120,7 +120,14 @@
       if (
         confirm("Tem certeza que deseja excluir todas as áreas monitoradas?")
       ) {
+        // Limpar áreas de plantio
         namespace.GeofenceManager.clearAll();
+        
+        // Limpar buffers
+        if (namespace.BufferModule && typeof namespace.BufferModule.clearBuffers === 'function') {
+          namespace.BufferModule.clearBuffers();
+        }
+        
         showAlert("Todas as áreas foram removidas");
       }
     });

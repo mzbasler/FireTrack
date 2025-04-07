@@ -175,32 +175,37 @@ body.dark-mode .delete-btn {
 }
 
 /* Melhorias para a lista de áreas */
-#geofenceList {
-  max-height: 30vh;
+#plantingAreaList, #bufferList {
+  max-height: 20vh;
   overflow-y: auto;
   margin-bottom: 15px;
   padding-right: 5px;
 }
 
-#geofenceList::-webkit-scrollbar {
+#plantingAreaList::-webkit-scrollbar,
+#bufferList::-webkit-scrollbar {
   width: 5px;
 }
 
-#geofenceList::-webkit-scrollbar-track {
+#plantingAreaList::-webkit-scrollbar-track,
+#bufferList::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.1);
   border-radius: 10px;
 }
 
-#geofenceList::-webkit-scrollbar-thumb {
+#plantingAreaList::-webkit-scrollbar-thumb,
+#bufferList::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.2);
   border-radius: 10px;
 }
 
-body.dark-mode #geofenceList::-webkit-scrollbar-track {
+body.dark-mode #plantingAreaList::-webkit-scrollbar-track,
+body.dark-mode #bufferList::-webkit-scrollbar-track {
   background: rgba(0, 255, 0, 0.05);
 }
 
-body.dark-mode #geofenceList::-webkit-scrollbar-thumb {
+body.dark-mode #plantingAreaList::-webkit-scrollbar-thumb,
+body.dark-mode #bufferList::-webkit-scrollbar-thumb {
   background: rgba(0, 255, 0, 0.2);
 }
 

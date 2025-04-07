@@ -101,6 +101,8 @@
           if (props) layer.bindPopup(props);
         }
       },
+      // Adiciona a propriedade interactive para garantir que o buffer possa ser criado sobre as áreas
+      interactive: false
     }).addTo(geofenceLayer);
 
     const geofenceInfo = {
@@ -110,16 +112,19 @@
       color: color,
       type: name.split(".").pop().toLowerCase(),
       rawContent: rawContent,
+      category: "planting" // Categoria para diferenciar áreas de plantio e buffers
     };
 
     importedGeofences.push(geofenceInfo);
-    addGeofenceToList(geofenceInfo);
+    addGeofenceToList(geofenceInfo, "planting");
     saveGeofencesToLocalStorage();
     checkFocosInGeofences();
   }
 
-  function addGeofenceToList(geofence) {
-    const geofenceList = document.getElementById("geofenceList");
+  function addGeofenceToList(geofence, category) {
+    // Escolhe o container correto baseado na categoria
+    const listContainerId = category === "planting" ? "plantingAreaList" : "bufferList";
+    const geofenceList = document.getElementById(listContainerId);
     if (!geofenceList) return;
 
     const emptyAlert = geofenceList.querySelector(".alert-info");
@@ -145,8 +150,9 @@
       if (geofenceList.children.length === 0) {
         const emptyAlert = document.createElement("div");
         emptyAlert.className = "alert alert-info";
-        emptyAlert.innerHTML =
-          '<i class="bi bi-info-circle"></i> Nenhuma área cadastrada ainda';
+        emptyAlert.innerHTML = category === "planting" ?
+          '<i class="bi bi-info-circle"></i> Nenhuma área de plantio cadastrada' :
+          '<i class="bi bi-info-circle"></i> Nenhum buffer cadastrado';
         geofenceList.appendChild(emptyAlert);
       }
     });
@@ -181,6 +187,7 @@
         color: g.color,
         type: g.type,
         rawContent: g.rawContent,
+        category: g.category || "planting" // Garante que geofences antigos tenham uma categoria
       }));
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(geofencesToSave));
@@ -232,16 +239,19 @@
                 if (props) layer.bindPopup(props);
               }
             },
+            // Adiciona a propriedade interactive para garantir que o buffer possa ser criado sobre as áreas
+            interactive: false
           }).addTo(geofenceLayer);
 
           // Reconstruir o objeto geofence com a nova camada
           const restoredGeofence = {
             ...geofence,
             layer: layer,
+            category: geofence.category || "planting" // Garante que geofences antigos tenham uma categoria
           };
 
           importedGeofences.push(restoredGeofence);
-          addGeofenceToList(restoredGeofence);
+          addGeofenceToList(restoredGeofence, restoredGeofence.category);
         } catch (error) {
           console.error(`Erro ao restaurar geofence ${geofence.name}:`, error);
         }
@@ -276,8 +286,9 @@
       });
 
       if (focosCount > 0) {
+        const areaType = geofence.category === "planting" ? "área de plantio" : "buffer";
         showAlert(
-          `${focosCount} foco(s) detectado(s) na área "${geofence.name}"`
+          `${focosCount} foco(s) detectado(s) na ${areaType} "${geofence.name}"`
         );
         geofence.layer.setStyle({
           weight: 4,
@@ -330,13 +341,28 @@
       importedGeofences = [];
       localStorage.removeItem(STORAGE_KEY);
 
-      const geofenceList = document.getElementById("geofenceList");
-      if (geofenceList) {
-        geofenceList.innerHTML = `
+      // Limpar as duas listas
+      const plantingAreaList = document.getElementById("plantingAreaList");
+      if (plantingAreaList) {
+        plantingAreaList.innerHTML = `
           <div class="alert alert-info">
-            <i class="bi bi-info-circle"></i> Nenhuma área cadastrada ainda
+            <i class="bi bi-info-circle"></i> Nenhuma área de plantio cadastrada
           </div>
         `;
+      }
+      
+      const bufferList = document.getElementById("bufferList");
+      if (bufferList) {
+        bufferList.innerHTML = `
+          <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> Nenhum buffer cadastrado
+          </div>
+        `;
+      }
+      
+      // Notificar o BufferModule para limpar seus buffers também
+      if (namespace.BufferModule && typeof namespace.BufferModule.clearBuffers === 'function') {
+        namespace.BufferModule.clearBuffers();
       }
     },
   };

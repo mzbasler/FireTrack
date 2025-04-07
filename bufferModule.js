@@ -4,6 +4,8 @@
   let isDrawing = false;
   let points = [];
   let drawingOverlay = null;
+  let buffersList = []; // Lista para armazenar todos os buffers criados
+  const STORAGE_KEY = "firetrack_buffers";
 
   function initialize() {
     const map = namespace.MapModule.getMap();
@@ -35,7 +37,10 @@
       addBufferBtn.addEventListener("click", startDrawing);
     }
 
-    document.addEventListener("heatPointsUpdated", checkFocosNoBuffer);
+    document.addEventListener("heatPointsUpdated", checkFocosNosBuffers);
+
+    // Carregar buffers do localStorage
+    loadSavedBuffers();
 
     return true;
   }
@@ -117,11 +122,11 @@
         drawingOverlay.update("Clique no segundo ponto para definir o raio");
       }
 
-      // Mark first point
+      // Mark first point - Mudando a cor do primeiro ponto para azul em vez de laranja
       L.circleMarker(points[0], {
         radius: 5,
-        color: "#ff4500",
-        fillColor: "#ff4500",
+        color: "#3388ff",
+        fillColor: "#3388ff",
         fillOpacity: 1,
       }).addTo(bufferLayer);
     } else if (points.length === 2) {
@@ -145,13 +150,10 @@
     document.removeEventListener("keydown", handleKeyPress);
 
     createBuffer(points);
-    addBufferToList(points);
   }
 
   function createBuffer(points) {
     if (!points || points.length !== 2 || !bufferLayer) return;
-
-    bufferLayer.clearLayers();
 
     const lineCoords = points.map((p) => [p.lat, p.lng]);
     const line = turf.lineString(
@@ -164,10 +166,12 @@
     );
 
     const point = turf.point([lineCoords[0][1], lineCoords[0][0]]);
-    bufferPolygon = turf.buffer(point, distance, { units: "kilometers" });
+    const bufferId = `buffer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const bufferGeojson = turf.buffer(point, distance, { units: "kilometers" });
+    bufferPolygon = bufferGeojson; // Mantém o buffer atual para checagem de focos
 
     // Add buffer polygon to map
-    L.geoJSON(bufferPolygon, {
+    const bufferLayerObj = L.geoJSON(bufferGeojson, {
       style: {
         color: "#3388ff",
         weight: 2,
@@ -177,66 +181,215 @@
       },
     }).addTo(bufferLayer);
 
-    // Add markers for points
+    // Add markers for points - Mudando as cores para azul e verde
+    const markers = [];
     points.forEach((point, index) => {
-      L.circleMarker([point.lat, point.lng], {
+      const marker = L.circleMarker([point.lat, point.lng], {
         radius: 5,
-        color: index === 0 ? "#ff4500" : "#32cd32",
-        fillColor: index === 0 ? "#ff4500" : "#32cd32",
+        color: index === 0 ? "#3388ff" : "#32cd32", // Azul para o primeiro ponto
+        fillColor: index === 0 ? "#3388ff" : "#32cd32",
         fillOpacity: 1,
       }).addTo(bufferLayer);
+      markers.push(marker);
     });
 
-    checkFocosNoBuffer();
+    // Adicionar o buffer à lista
+    const bufferInfo = {
+      id: bufferId,
+      distance: distance,
+      centerLat: points[0].lat,
+      centerLng: points[0].lng,
+      layer: bufferLayerObj,
+      markers: markers,
+      color: "#3388ff",
+      geojson: bufferGeojson
+    };
+    
+    buffersList.push(bufferInfo);
+    saveBuffersToLocalStorage();
+    addBufferToList(bufferInfo);
+    checkFocosNosBuffers();
   }
 
-  function checkFocosNoBuffer() {
-    if (!bufferPolygon) return;
-
+  function checkFocosNosBuffers() {
     const heatPoints = namespace.DataModule.getHeatPoints();
     if (!heatPoints || heatPoints.length === 0) return;
 
-    const focosCount = heatPoints.filter((point) => {
-      const pt = turf.point([point.longitude, point.latitude]);
-      return turf.booleanPointInPolygon(pt, bufferPolygon);
-    }).length;
+    // Verificar focos em todos os buffers
+    buffersList.forEach(buffer => {
+      const bufferGeo = buffer.geojson;
+      
+      const focosCount = heatPoints.filter((point) => {
+        const pt = turf.point([point.longitude, point.latitude]);
+        return turf.booleanPointInPolygon(pt, bufferGeo);
+      }).length;
 
-    if (focosCount > 0) {
-      showAlert(`Focos detectados no buffer: ${focosCount}`);
-    }
+      if (focosCount > 0) {
+        showAlert(`${focosCount} foco(s) detectado(s) no buffer de ${buffer.distance.toFixed(2)} km`);
+        
+        // Destacar visualmente o buffer
+        buffer.layer.setStyle({
+          weight: 3,
+          opacity: 0.9,
+          fillOpacity: 0.3,
+        });
+      }
+    });
   }
 
-  function addBufferToList(points) {
-    if (!points || points.length !== 2) return;
+  function addBufferToList(buffer) {
+    const bufferListEl = document.getElementById("bufferList");
+    if (!bufferListEl) return;
 
-    const distance = turf
-      .distance(
-        turf.point([points[0].lng, points[0].lat]),
-        turf.point([points[1].lng, points[1].lat]),
-        { units: "kilometers" }
-      )
-      .toFixed(2);
+    // Remover alerta de "nenhum buffer" se existir
+    const emptyAlert = bufferListEl.querySelector(".alert-info");
+    if (emptyAlert) emptyAlert.remove();
 
     const bufferItem = document.createElement("div");
     bufferItem.className = "geofence-item buffer-item";
+    bufferItem.dataset.id = buffer.id;
     bufferItem.innerHTML = `
       <div class="geofence-header">
-        <span class="geofence-name">Buffer (${distance} km)</span>
+        <span class="geofence-name">
+          <span class="geofence-color" style="display:inline-block; width:12px; height:12px; background-color:#3388ff; margin-right:5px; border-radius:50%;"></span>
+          Buffer (${buffer.distance.toFixed(2)} km)
+        </span>
         <button class="delete-btn">&times;</button>
       </div>
     `;
 
     // Add delete functionality
     bufferItem.querySelector(".delete-btn").addEventListener("click", () => {
-      if (bufferLayer) bufferLayer.clearLayers();
-      bufferPolygon = null;
+      removeBuffer(buffer.id);
       bufferItem.remove();
+      
+      // Mostrar mensagem "nenhum buffer" se a lista ficou vazia
+      if (bufferListEl.children.length === 0) {
+        const emptyAlert = document.createElement("div");
+        emptyAlert.className = "alert alert-info";
+        emptyAlert.innerHTML = '<i class="bi bi-info-circle"></i> Nenhum buffer cadastrado';
+        bufferListEl.appendChild(emptyAlert);
+      }
     });
 
-    // Add to geofence list
-    const geofenceList = document.getElementById("geofenceList");
-    if (geofenceList) {
-      geofenceList.appendChild(bufferItem);
+    // Centralizar o mapa no buffer ao clicar no nome
+    bufferItem.querySelector(".geofence-name").addEventListener("click", () => {
+      const map = namespace.MapModule.getMap();
+      if (map && buffer.layer) {
+        map.fitBounds(buffer.layer.getBounds());
+      }
+    });
+
+    // Add to buffer list
+    bufferListEl.appendChild(bufferItem);
+  }
+
+  function removeBuffer(bufferId) {
+    const bufferToRemove = buffersList.find(b => b.id === bufferId);
+    
+    if (bufferToRemove) {
+      // Remover a camada do mapa
+      bufferLayer.removeLayer(bufferToRemove.layer);
+      
+      // Remover marcadores
+      if (bufferToRemove.markers) {
+        bufferToRemove.markers.forEach(marker => {
+          bufferLayer.removeLayer(marker);
+        });
+      }
+      
+      // Atualizar a lista de buffers
+      buffersList = buffersList.filter(b => b.id !== bufferId);
+      saveBuffersToLocalStorage();
+      
+      // Se o buffer removido era o buffer atual
+      if (bufferPolygon === bufferToRemove.geojson) {
+        bufferPolygon = null;
+      }
+    }
+  }
+
+  function saveBuffersToLocalStorage() {
+    try {
+      const buffersToSave = buffersList.map(buffer => ({
+        id: buffer.id,
+        distance: buffer.distance,
+        centerLat: buffer.centerLat,
+        centerLng: buffer.centerLng,
+        color: buffer.color,
+        geojsonStr: JSON.stringify(buffer.geojson)
+      }));
+      
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(buffersToSave));
+    } catch (error) {
+      console.error("Erro ao salvar buffers no localStorage:", error);
+    }
+  }
+
+  function loadSavedBuffers() {
+    try {
+      const savedData = localStorage.getItem(STORAGE_KEY);
+      if (!savedData) return;
+      
+      const buffers = JSON.parse(savedData);
+      
+      buffers.forEach(buffer => {
+        try {
+          const geojson = JSON.parse(buffer.geojsonStr);
+          const center = [buffer.centerLat, buffer.centerLng];
+          
+          // Criar a camada com o buffer
+          const bufferLayerObj = L.geoJSON(geojson, {
+            style: {
+              color: buffer.color || "#3388ff",
+              weight: 2,
+              opacity: 0.7,
+              fillColor: buffer.color || "#3388ff",
+              fillOpacity: 0.2,
+            },
+          }).addTo(bufferLayer);
+          
+          // Adicionar marcador do centro
+          const markers = [];
+          const centerMarker = L.circleMarker(center, {
+            radius: 5,
+            color: "#3388ff",
+            fillColor: "#3388ff",
+            fillOpacity: 1,
+          }).addTo(bufferLayer);
+          markers.push(centerMarker);
+          
+          // Adicionar o segundo ponto se possível (pode não estar disponível em buffers antigos)
+          if (buffer.edgePoint) {
+            const edgeMarker = L.circleMarker([buffer.edgePoint.lat, buffer.edgePoint.lng], {
+              radius: 5,
+              color: "#32cd32",
+              fillColor: "#32cd32",
+              fillOpacity: 1,
+            }).addTo(bufferLayer);
+            markers.push(edgeMarker);
+          }
+          
+          // Reconstruir o objeto buffer
+          const bufferInfo = {
+            id: buffer.id,
+            distance: buffer.distance,
+            centerLat: buffer.centerLat,
+            centerLng: buffer.centerLng,
+            layer: bufferLayerObj,
+            markers: markers,
+            color: buffer.color || "#3388ff",
+            geojson: geojson
+          };
+          
+          buffersList.push(bufferInfo);
+          addBufferToList(bufferInfo);
+        } catch (error) {
+          console.error("Erro ao restaurar buffer:", error);
+        }
+      });
+    } catch (error) {
+      console.error("Erro ao carregar buffers do localStorage:", error);
     }
   }
 
@@ -249,7 +402,20 @@
   function cancelDrawing() {
     if (!isDrawing) return;
 
-    if (bufferLayer) bufferLayer.clearLayers();
+    if (bufferLayer) {
+      // Remover apenas os pontos temporários do desenho atual
+      bufferLayer.eachLayer(layer => {
+        if (layer instanceof L.CircleMarker) {
+          for (const point of points) {
+            if (layer.getLatLng().equals(point)) {
+              bufferLayer.removeLayer(layer);
+              break;
+            }
+          }
+        }
+      });
+    }
+    
     isDrawing = false;
     points = [];
 
@@ -265,6 +431,24 @@
     }
 
     document.removeEventListener("keydown", handleKeyPress);
+  }
+
+  function clearBuffers() {
+    if (bufferLayer) {
+      bufferLayer.clearLayers();
+    }
+    buffersList = [];
+    bufferPolygon = null;
+    localStorage.removeItem(STORAGE_KEY);
+
+    const bufferListEl = document.getElementById("bufferList");
+    if (bufferListEl) {
+      bufferListEl.innerHTML = `
+        <div class="alert alert-info">
+          <i class="bi bi-info-circle"></i> Nenhum buffer cadastrado
+        </div>
+      `;
+    }
   }
 
   function showAlert(message) {
@@ -290,6 +474,10 @@
     getBufferPolygon: function () {
       return bufferPolygon;
     },
+    getBuffers: function() {
+      return buffersList;
+    },
+    clearBuffers: clearBuffers,
     cancelDrawing: cancelDrawing,
   };
 })(window.FireTrack || (window.FireTrack = {}));
